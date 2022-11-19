@@ -26,6 +26,13 @@ const stateMessage = {
   2: 'Nice to meet you, why you want to start saving money?',
 };
 
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Api Alive',
+  });
+});
+
 // webhook callback
 app.post('/webhook', line.middleware(config), (req, res) => {
   readFile();

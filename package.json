@@ -25,6 +25,7 @@
   "dependencies": {
     "@line/bot-sdk": "^6.2.1",
     "dotenv": "^16.0.3",
-    "express": "^4.16.3"
+    "express": "^4.16.3",
+    "js-yaml": "^4.1.0"
   }
 }
