@@ -1,30 +1,52 @@
 'use strict';
 
+const yaml = require('js-yaml');
+const fs = require('fs');
+require('dotenv').config();
+
 const line = require('@line/bot-sdk');
 const express = require('express');
-const config = require('./config.json');
+const config = {
+  channelAccessToken: process.env.NODE_ACCESS_TOKEN,
+  channelSecret: process.env.NODE_SECRET,
+};
 
 // create LINE SDK client
 const client = new line.Client(config);
-
 const app = express();
+let users = [];
+const states = {
+  empty: 0,
+  newUser: 1,
+  nameGiven: 2,
+};
+const stateMessage = {
+  0: '',
+  1: "Let's start by telling me about you. What is your name?",
+  2: 'Nice to meet you, why you want to start saving money?',
+};
 
 // webhook callback
 app.post('/webhook', line.middleware(config), (req, res) => {
+  readFile();
   // req.body.events should be an array of events
   if (!Array.isArray(req.body.events)) {
     return res.status(500).end();
   }
+
   // handle events separately
-  Promise.all(req.body.events.map(event => {
-    console.log('event', event);
-    // check verify webhook event
-    if (event.replyToken === '00000000000000000000000000000000' ||
-      event.replyToken === 'ffffffffffffffffffffffffffffffff') {
-      return;
-    }
-    return handleEvent(event);
-  }))
+  Promise.all(
+    req.body.events.map((event) => {
+      // check verify webhook event
+      if (
+        event.replyToken === '00000000000000000000000000000000' ||
+        event.replyToken === 'ffffffffffffffffffffffffffffffff'
+      ) {
+        return;
+      }
+      return handleEvent(event, event.source.userId);
+    })
+  )
     .then(() => res.end())
     .catch((err) => {
       console.error(err);
@@ -42,13 +64,16 @@ const replyText = (token, texts) => {
 };
 
 // callback function to handle a single event
-function handleEvent(event) {
+function handleEvent(event, userId) {
+  if (!users.find((x) => x.userId === userId)) {
+    users.push({ userId: userId, state: states.empty });
+  }
   switch (event.type) {
     case 'message':
       const message = event.message;
       switch (message.type) {
         case 'text':
-          return handleText(message, event.replyToken);
+          return handleText(message, event.replyToken, userId);
         case 'image':
           return handleImage(message, event.replyToken);
         case 'video':
@@ -64,7 +89,7 @@ function handleEvent(event) {
       }
 
     case 'follow':
-      return replyText(event.replyToken, 'Got followed event');
+      return console.log(`New follow: ${JSON.stringify(event)}`);
 
     case 'unfollow':
       return console.log(`Unfollowed this bot: ${JSON.stringify(event)}`);
@@ -80,16 +105,36 @@ function handleEvent(event) {
       return replyText(event.replyToken, `Got postback: ${data}`);
 
     case 'beacon':
-      const dm = `${Buffer.from(event.beacon.dm || '', 'hex').toString('utf8')}`;
-      return replyText(event.replyToken, `${event.beacon.type} beacon hwid : ${event.beacon.hwid} with device message = ${dm}`);
+      const dm = `${Buffer.from(event.beacon.dm || '', 'hex').toString(
+        'utf8'
+      )}`;
+      return replyText(
+        event.replyToken,
+        `${event.beacon.type} beacon hwid : ${event.beacon.hwid} with device message = ${dm}`
+      );
 
     default:
       throw new Error(`Unknown event: ${JSON.stringify(event)}`);
   }
 }
 
-function handleText(message, replyToken) {
-  return replyText(replyToken, message.text);
+function handleText(message, replyToken, userId) {
+  const user = users.find((x) => x.userId === userId);
+  switch (user.state) {
+    case states.empty:
+      user.state = states.newUser;
+      break;
+    case states.newUser:
+      user.name = message;
+      user.state = states.nameGiven;
+      break;
+
+    default:
+      break;
+  }
+  const reply = stateMessage[user.state];
+  updateFile();
+  return replyText(replyToken, reply);
 }
 
 function handleImage(message, replyToken) {
@@ -112,7 +157,22 @@ function handleSticker(message, replyToken) {
   return replyText(replyToken, 'Got Sticker');
 }
 
-const port = config.port;
-app.listen(port, () => {
-  console.log(`listening on ${port}`);
-});
+function readFile() {
+  if (!fs.existsSync('./users.yml')) {
+    fs.writeFileSync('./users.yml', '');
+  }
+  const file = yaml.safeLoad(fs.readFileSync('./users.yml', 'utf8'));
+  users = file || [];
+}
+
+function updateFile() {
+  let doc = yaml.safeLoad(fs.readFileSync('./users.yml', 'utf8'));
+  doc = users;
+  fs.writeFile('./users.yml', yaml.safeDump(doc), (err) => {
+    if (err) {
+      console.log(err);
+    }
+  });
+}
+
+app.listen(process.env.PORT || 3000, () => {});
