@@ -34,7 +34,7 @@ app.get('/', (req, res) => {
 });
 
 // webhook callback
-app.post('/webhook', line.middleware(config), (req, res) => {
+app.post('/webhook', (req, res) => {
   readFile();
   // req.body.events should be an array of events
   if (!Array.isArray(req.body.events)) {
