@@ -168,12 +168,12 @@ function readFile() {
   if (!fs.existsSync('./users.yml')) {
     fs.writeFileSync('./users.yml', '');
   }
-  const file = yaml.safeLoad(fs.readFileSync('./users.yml', 'utf8'));
+  const file = yaml.load(fs.readFileSync('./users.yml', 'utf8'));
   users = file || [];
 }
 
 function updateFile() {
-  let doc = yaml.safeLoad(fs.readFileSync('./users.yml', 'utf8'));
+  let doc = yaml.load(fs.readFileSync('./users.yml', 'utf8'));
   doc = users;
   fs.writeFile('./users.yml', yaml.safeDump(doc), (err) => {
     if (err) {
