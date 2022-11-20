@@ -32,7 +32,7 @@ const stateMessage = {
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
-    message: config.channelAccessToken,
+    message: 'alive',
   });
 });
 
