@@ -6,6 +6,9 @@ require('dotenv').config();
 
 const line = require('@line/bot-sdk');
 const express = require('express');
+const bodyParser = require('body-parser');
+const jsonParser = bodyParser.json();
+
 const config = {
   channelAccessToken: process.env.NODE_ACCESS_TOKEN,
   channelSecret: process.env.NODE_SECRET,
@@ -34,7 +37,8 @@ app.get('/', (req, res) => {
 });
 
 // webhook callback
-app.post('/webhook', (req, res) => {
+app.post('/webhook', jsonParser, (req, res) => {
+  console.log(req.body);
   readFile();
   // req.body.events should be an array of events
   if (!Array.isArray(req.body.events)) {
