@@ -20,13 +20,20 @@ const app = express();
 let users = [];
 const states = {
   empty: 0,
-  newUser: 1,
-  nameGiven: 2,
+  waitingName: 1,
+  waitingReason: 2,
+  waitingAmount: 3,
+  waitingDate: 4,
+  waitingOption: 5,
 };
 const stateMessage = {
-  0: '',
-  1: "Let's start by telling me about you. What is your name?",
-  2: 'Nice to meet you, why you want to start saving money?',
+  askName: "Let's start by telling me about you. What is your name?",
+  askReason: 'Nice to meet you @name, why you want to start saving money?',
+  askAmount:
+    'Sounds good, how much money you need to save to achieve your goal? eg. NTD34000',
+  askDate: 'When do you want to achieve the goal (YYYY-MM-DD)? eg. 2022-12-31',
+  askOption:
+    'Thanks for using Ca$hy, please select an option in the menu to continue.',
 };
 
 app.get('/', (req, res) => {
@@ -153,19 +160,37 @@ function handleEvent(event, userId) {
 
 function handleText(message, replyToken, userId) {
   const user = users.find((x) => x.userId === userId);
+  let reply = '';
   switch (user.state) {
     case states.empty:
-      user.state = states.newUser;
+      user.state = states.waitingName;
+      reply = stateMessage.askName;
       break;
-    case states.newUser:
+    case states.waitingName:
       user.name = message;
-      user.state = states.nameGiven;
+      user.state = states.waitingReason;
+      reply = stateMessage.askReason.replace('@name', user.name);
+      break;
+    case states.waitingReason:
+      user.name = message;
+      user.state = states.waitingAmount;
+      reply = stateMessage.askAmount;
+      break;
+    case states.waitingAmount:
+      user.name = message;
+      user.state = states.waitingDate;
+      reply = stateMessage.askDate;
+      break;
+    case states.waitingDate:
+      user.name = message;
+      user.state = states.waitingOption;
+      reply = stateMessage.askOption;
       break;
 
     default:
       break;
   }
-  const reply = stateMessage[user.state];
+
   updateFile();
   return replyText(replyToken, reply);
 }
