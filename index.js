@@ -179,7 +179,7 @@ function readFile() {
 function updateFile() {
   let doc = yaml.load(fs.readFileSync('./users.yml', 'utf8'));
   doc = users;
-  fs.writeFile('./users.yml', yaml.safeDump(doc), (err) => {
+  fs.writeFile('./users.yml', yaml.dump(doc), (err) => {
     if (err) {
       console.log(err);
     }
