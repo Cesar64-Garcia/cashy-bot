@@ -36,6 +36,17 @@ app.get('/', (req, res) => {
   });
 });
 
+app.post('/reset', (req, res) => {
+  readFile();
+  users = [];
+  updateFile();
+
+  res.status(200).json({
+    success: true,
+    message: 'complete',
+  });
+});
+
 // webhook callback
 app.post('/webhook', jsonParser, (req, res) => {
   console.log(req.body);
