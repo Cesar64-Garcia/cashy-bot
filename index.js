@@ -163,22 +163,22 @@ function handleText(message, replyToken, userId) {
       reply = stateMessage.askName;
       break;
     case states.waitingName:
-      user.name = message;
+      user.name = message.text;
       user.state = states.waitingReason;
       reply = stateMessage.askReason.replace('@name', user.name);
       break;
     case states.waitingReason:
-      user.name = message;
+      user.reason = message.text;
       user.state = states.waitingAmount;
       reply = stateMessage.askAmount;
       break;
     case states.waitingAmount:
-      user.name = message;
+      user.amount = message.text;
       user.state = states.waitingDate;
       reply = stateMessage.askDate;
       break;
     case states.waitingDate:
-      user.name = message;
+      user.date = message.text;
       user.state = states.waitingOption;
       reply = stateMessage.askOption;
       break;
