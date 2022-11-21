@@ -55,15 +55,15 @@ app.post('/reset', (req, res) => {
 });
 
 app.post('/get-data', (req, res) => {
+  readFile();
   res.status(200).json({
     success: true,
-    message: JSON.stringify(users),
+    message: users,
   });
 });
 
 // webhook callback
 app.post('/webhook', jsonParser, (req, res) => {
-  console.log(req.body);
   readFile();
   // req.body.events should be an array of events
   if (!Array.isArray(req.body.events)) {
