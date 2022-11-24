@@ -21,7 +21,7 @@ const compulsoryConfig = {
   channelSecret: process.env.COMPULSORY_SECRET,
 };
 
-const dateMessage = {
+const dateMessageTemplate = {
   type: "template",
   template: {
     type: "buttons",
@@ -42,7 +42,7 @@ const dateMessage = {
   altText: "this is a buttons template",
 };
 
-const reasonMessage = {
+const reasonMessageTemplate = {
   altText: "this is a buttons template",
   type: "template",
   template: {
@@ -70,7 +70,97 @@ const reasonMessage = {
       },
     ],
     text: "What is your main reason to save money?",
-    title: "Your main reason to save money",
+  },
+};
+
+const goalValidationMessageTemplate = {
+  type: "template",
+  altText: "this is a buttons template",
+  template: {
+    type: "buttons",
+    text: "Are you sure you want to change your goal? ",
+    actions: [
+      {
+        type: "message",
+        label: "Yes",
+        text: "Yes",
+      },
+      {
+        type: "message",
+        label: "No",
+        text: "No",
+      },
+    ],
+  },
+};
+
+const states = {
+  empty: "empty",
+  waitingName: "waitingName",
+  waitingPercentage: "waitingPercentage",
+  waitingGoalReason: "waitingGoalReason",
+  waitingGoalAmount: "waitingGoalAmount",
+  waitingDate: "waitingDate",
+  waitingOption: "waitingOption",
+  waitingSavingAmount: "waitingSavingAmount",
+  waitingGoalChangeValidation: "waitingGoalChangeValidation",
+};
+
+const menuOptions = {
+  saveMoney: "I want to save some money.",
+  changeGoal: "I want to change my savings goal.",
+  savingTip: "Can you give me some savings tips?",
+  showBalance: "Please show me my balance.",
+};
+
+const stateMessage = {
+  askName: {
+    type: "text",
+    text: "Let's start by telling me about you. What is your name?",
+  },
+  nameSent: { type: "text", text: "Nice to meet you @name." },
+  percentageExplaines: {
+    type: "text",
+    text: "Ca$hy will automatically save a percentage of all your purchases",
+  },
+  askPercentage: {
+    type: "text",
+    text: "Which percentage of your purchases you want to save? Please input only number.",
+  },
+  askReason: reasonMessageTemplate,
+  askAmount: {
+    type: "text",
+    text: "How much money (NTD) do you need to achieve your goal? Please input only number.",
+  },
+  askDate: dateMessageTemplate,
+  goalSet: {
+    type: "text",
+    text: "Your new goal is set to NTD@amount, and the expected date @date.  Let's continue your saving journey by selecting an option from the menu.",
+  },
+  didntUnderstand: {
+    type: "text",
+    text: "I couldn't understand what your request, please select an option from the menu.",
+  },
+  askAmountToSave: {
+    type: "text",
+    text: "How much money do you want to save today?",
+  },
+  moneySaved: {
+    type: "text",
+    text: "Your saving has been recorded. Thank you for your saving!",
+  },
+  currentGoal: {
+    type: "text",
+    text: "Your current goal is NTD@amount and expected date is @date.",
+  },
+  goalValidation: goalValidationMessageTemplate,
+  goalToChange: {
+    type: "text",
+    text: "Please answer the following questions to change your goal.",
+  },
+  goalDoNotChange: {
+    type: "text",
+    text: "Your goal is NTD@amount and expected date is @date. Hope you enjoy your saving journey!",
   },
 };
 
@@ -84,25 +174,6 @@ const voluntaryUsers = "./voluntary-users.yml";
 
 const app = express();
 
-const states = {
-  empty: 0,
-  waitingName: 1,
-  waitingReason: 2,
-  waitingAmount: 3,
-  waitingDate: 4,
-  waitingOption: 5,
-};
-
-const stateMessage = {
-  askName: "Let's start by telling me about you. What is your name?",
-  askReason: "Nice to meet you @name, why you want to start saving money?",
-  askAmount:
-    "Sounds good, how much money you need to save to achieve your goal? eg. NTD34000",
-  askDate: "When do you want to achieve the goal (YYYY-MM-DD)? eg. 2022-12-31",
-  askOption:
-    "Goal set for: @date. Please select an option in the menu to continue.",
-};
-
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
@@ -111,8 +182,8 @@ app.get("/", (req, res) => {
 });
 
 app.post("/reset-voluntary", (req, res) => {
-  readFile(true);
-  updateFile(true, []);
+  readUsersFile(true);
+  updateUsersFile(true, []);
 
   res.status(200).json({
     success: true,
@@ -121,7 +192,7 @@ app.post("/reset-voluntary", (req, res) => {
 });
 
 app.post("/get-voluntary", (req, res) => {
-  const users = readFile(true);
+  const users = readUsersFile(true);
   res.status(200).json({
     success: true,
     message: users,
@@ -129,8 +200,8 @@ app.post("/get-voluntary", (req, res) => {
 });
 
 app.post("/reset-compulsory", (req, res) => {
-  readFile(false);
-  updateFile(false, []);
+  readUsersFile(false);
+  updateUsersFile(false, []);
 
   res.status(200).json({
     success: true,
@@ -139,14 +210,14 @@ app.post("/reset-compulsory", (req, res) => {
 });
 
 app.post("/get-compulsory", (req, res) => {
-  const users = readFile(false);
+  const users = readUsersFile(false);
   res.status(200).json({
     success: true,
     message: users,
   });
 });
 
-// webhook callback
+// webhook voluntary callback
 app.post("/webhook-voluntary", jsonParser, (req, res) => {
   // req.body.events should be an array of events
   if (!Array.isArray(req.body.events)) {
@@ -173,20 +244,38 @@ app.post("/webhook-voluntary", jsonParser, (req, res) => {
     });
 });
 
-// simple reply function
-const replyText = (token, texts, isVolunary) => {
-  console.log({ token, texts, isVolunary });
-  texts = Array.isArray(texts) ? texts : [texts];
-  return (isVolunary ? voluntaryClient : compulsoryClient).replyMessage(
-    token,
-    texts.map((text) => ({ type: "text", text }))
-  );
-};
+// webhook compulsory callback
+app.post("/webhook-compulsory", jsonParser, (req, res) => {
+  // req.body.events should be an array of events
+  if (!Array.isArray(req.body.events)) {
+    return res.status(500).end();
+  }
 
-const replyTemplate = (token, template, isVolunary) => {
+  // handle events separately
+  Promise.all(
+    req.body.events.map((event) => {
+      // check verify webhook event
+      if (
+        event.replyToken === "00000000000000000000000000000000" ||
+        event.replyToken === "ffffffffffffffffffffffffffffffff"
+      ) {
+        return;
+      }
+      return handleEvent(event, event.source.userId, false);
+    })
+  )
+    .then(() => res.end())
+    .catch((err) => {
+      console.error(err);
+      res.status(500).end();
+    });
+});
+
+// simple reply function
+const sendReply = (token, messages, isVolunary) => {
   return (isVolunary ? voluntaryClient : compulsoryClient).replyMessage(
     token,
-    template
+    messages
   );
 };
 
@@ -218,7 +307,7 @@ function handleEvent(event, userId, isVolunary) {
 }
 
 function handleText(text, replyToken, userId, isVolunary) {
-  const users = readFile(true);
+  const users = readUsersFile(true);
   let user = users.find((x) => x.userId === userId);
 
   if (!user) {
@@ -226,54 +315,153 @@ function handleText(text, replyToken, userId, isVolunary) {
     users.push(user);
   }
 
-  const { isTemplateReply, reply } = routingCompulsory(text, user);
+  const replies = routing(text, user, isVolunary);
+  updateUsersFile(isVolunary, users);
 
-  updateFile(isVolunary, users);
-
-  return isTemplateReply
-    ? replyTemplate(replyToken, reply, isVolunary)
-    : replyText(replyToken, reply, isVolunary);
+  return sendReply(replyToken, replies, isVolunary);
 }
 
-function routingCompulsory(text, user) {
-  let isTemplateReply = false;
-  let reply = "";
+function routing(text, user, isVolunary) {
+  let replies = [];
 
   switch (user.state) {
     case states.empty:
       user.state = states.waitingName;
-      reply = stateMessage.askName;
+      replies.push(stateMessage.askName);
       break;
     case states.waitingName:
       user.name = text;
-      user.state = states.waitingReason;
-      reply = reasonMessage;
-      isTemplateReply = true;
+      const nameSentMessage = { ...stateMessage.nameSent };
+      nameSentMessage.text = nameSentMessage.text.replaceAll(
+        "@name",
+        user.name
+      );
+
+      replies.push(nameSentMessage);
+
+      if (isVolunary) {
+        user.state = states.waitingGoalReason;
+        replies.push(stateMessage.askReason);
+      } else {
+        user.state = states.waitingPercentage;
+        replies.push(stateMessage.percentageExplaines);
+        replies.push(stateMessage.askPercentage);
+      }
       break;
-    case states.waitingReason:
+    case states.waitingGoalReason:
       user.reason = text;
-      user.state = states.waitingAmount;
-      reply = stateMessage.askAmount;
+      user.state = states.waitingGoalAmount;
+      replies.push(stateMessage.askAmount);
       break;
-    case states.waitingAmount:
-      user.amount = text;
-      user.state = states.waitingDate;
-      reply = dateMessage;
-      isTemplateReply = true;
+    case states.waitingGoalAmount:
+      const amount = parseInt(text);
+      if (isNaN(amount)) {
+        user.state = states.waitingGoalAmount;
+        replies.push(stateMessage.askAmount);
+      } else {
+        user.amount = amount;
+        user.state = states.waitingDate;
+        replies.push(stateMessage.askDate);
+      }
+
       break;
     case states.waitingDate:
       user.date = text;
       user.state = states.waitingOption;
-      reply = stateMessage.askOption.replace("@date", user.date);
+
+      const goalSetMessage = { ...stateMessage.goalSet };
+      goalSetMessage.text = goalSetMessage.text
+        .replaceAll("@amount", user.amount)
+        .replaceAll("@date", user.date);
+
+      replies.push(goalSetMessage);
+      break;
+    case states.waitingOption:
+      replies = handleMenuOption(text, user, isVolunary);
+      break;
+    case states.waitingSavingAmount:
+      user.state = states.waitingOption;
+      user.savings = user.savings || [];
+
+      const savingAmount = parseInt(text);
+      if (isNaN(savingAmount)) {
+        user.state = states.waitingSavingAmount;
+        replies.push(stateMessage.askAmountToSave);
+      } else {
+        user.savings.push({
+          date: Date.now(),
+          amount: savingAmount,
+        });
+        user.state = states.waitingOption;
+        replies.push(stateMessage.moneySaved);
+      }
+      break;
+    case states.waitingGoalChangeValidation:
+      if (text === "Yes") {
+        user.state = states.waitingGoalReason;
+        replies.push(stateMessage.goalToChange);
+        replies.push(stateMessage.askReason);
+      } else {
+        user.state = states.waitingOption;
+
+        const goalDoNotChangeMessage = { ...stateMessage.goalDoNotChange };
+        goalDoNotChangeMessage.text = goalDoNotChangeMessage.text
+          .replaceAll("@amount", user.amount)
+          .replaceAll("@date", user.date);
+
+        replies.push(goalDoNotChangeMessage);
+      }
       break;
     default:
       break;
   }
 
-  return { isTemplateReply, reply };
+  return replies;
 }
 
-function readFile(isVolunary) {
+function handleMenuOption(text, user, isVolunary) {
+  let replies = [];
+
+  switch (text) {
+    case menuOptions.saveMoney:
+      user.state = states.waitingSavingAmount;
+      replies.push(stateMessage.askAmountToSave);
+      break;
+    case menuOptions.changeGoal:
+      user.state = states.waitingGoalChangeValidation;
+      const currentGoalMessage = { ...stateMessage.currentGoal };
+      currentGoalMessage.text = currentGoalMessage.text
+        .replaceAll("@amount", user.amount)
+        .replaceAll("@date", user.date);
+
+      replies.push(currentGoalMessage);
+      replies.push(stateMessage.goalValidation);
+      break;
+    case menuOptions.savingTip:
+      const tips = readTipsFile();
+      const random = Math.floor(Math.random() * tips.length);
+      const tip = tips[random];
+
+      replies.push({
+        type: "text",
+        text: tip.title,
+      });
+
+      replies.push({
+        type: "text",
+        text: tip.body,
+      });
+      break;
+    default:
+      user.state = states.waitingOption;
+      replies.push(stateMessage.didntUnderstand);
+      break;
+  }
+
+  return replies;
+}
+
+function readUsersFile(isVolunary) {
   if (!fs.existsSync(isVolunary ? voluntaryUsers : compulsoryUsers)) {
     fs.writeFileSync(isVolunary ? voluntaryUsers : compulsoryUsers, "");
   }
@@ -284,7 +472,16 @@ function readFile(isVolunary) {
   return file || [];
 }
 
-function updateFile(isVolunary, users) {
+function readTipsFile() {
+  if (!fs.existsSync("./tips.yml")) {
+    fs.writeFileSync("./tips.yml", "");
+  }
+  const file = yaml.load(fs.readFileSync("./tips.yml", "utf8"));
+
+  return file || [];
+}
+
+function updateUsersFile(isVolunary, users) {
   fs.writeFile(
     isVolunary ? voluntaryUsers : compulsoryUsers,
     yaml.dump(users),
