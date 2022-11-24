@@ -164,7 +164,7 @@ const stateMessage = {
   },
   balance: {
     type: "text",
-    text: "You have achieve @percentage% of your goal! \n\nBelow are your transaction's history.",
+    text: "You save a total of NTD@amount.\n\nYou have achieve @percentage% of your goal! \n\nBelow you'll see your transaction history.",
   },
 };
 
@@ -470,10 +470,9 @@ function handleMenuOption(text, user, isVolunary) {
       const percentage = ((total / user.amount) * 100).toFixed(2);
 
       const balanceMessage = { ...stateMessage.balance };
-      balanceMessage.text = balanceMessage.text.replaceAll(
-        "@percentage",
-        percentage
-      );
+      balanceMessage.text = balanceMessage.text
+        .replaceAll("@percentage", percentage)
+        .replaceAll("@amount", total);
 
       replies.push(balanceMessage);
       replies.push({
