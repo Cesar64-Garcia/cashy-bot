@@ -125,17 +125,17 @@ const stateMessage = {
   },
   askPercentage: {
     type: "text",
-    text: "Which percentage of your purchases you want to save? Please input only number.",
+    text: "Which percentage of your purchases you want to save? \n\nPlease input only number.",
   },
   askReason: reasonMessageTemplate,
   askAmount: {
     type: "text",
-    text: "How much money (NTD) do you need to achieve your goal? Please input only number.",
+    text: "How much money (NTD) do you need to achieve your goal? \n\nPlease input only number.",
   },
   askDate: dateMessageTemplate,
   goalSet: {
     type: "text",
-    text: "Your new goal is set to NTD@amount, and the expected date @date.  Let's continue your saving journey by selecting an option from the menu.",
+    text: "Your new goal is set to NTD@amount, and the expected date @date. \n\nLet's continue your saving journey by selecting an option from the menu.",
   },
   didntUnderstand: {
     type: "text",
@@ -143,11 +143,11 @@ const stateMessage = {
   },
   askAmountToSave: {
     type: "text",
-    text: "How much money do you want to save today?",
+    text: "How much money (NTD) do you want to save today? \n\nPlease input only number.",
   },
   moneySaved: {
     type: "text",
-    text: "Your saving has been recorded. Thank you for your saving!",
+    text: "Your saving has been recorded. \n\nThank you for your saving!",
   },
   currentGoal: {
     type: "text",
@@ -160,7 +160,11 @@ const stateMessage = {
   },
   goalDoNotChange: {
     type: "text",
-    text: "Your goal is NTD@amount and expected date is @date. Hope you enjoy your saving journey!",
+    text: "Your goal is NTD@amount and expected date is @date. \n\nHope you enjoy your saving journey!",
+  },
+  balance: {
+    type: "text",
+    text: "You have achieve @percentage% of your goal! \n\nBelow are your transaction's history.",
   },
 };
 
@@ -452,6 +456,31 @@ function handleMenuOption(text, user, isVolunary) {
         text: tip.body,
       });
       break;
+    case menuOptions.showBalance:
+      const transactions = user.savings.map((x) => {
+        const date = new Date(x.date);
+        const dateString = date.toLocaleDateString("zh-TW", {
+          timeZone: "Asia/Taipei",
+        });
+        x.message = dateString + " - NTD" + x.amount;
+        return x;
+      });
+
+      const total = transactions.reduce(getSum, 0);
+      const percentage = ((total / user.amount) * 100).toFixed(2);
+
+      const balanceMessage = { ...stateMessage.balance };
+      balanceMessage.text = balanceMessage.text.replaceAll(
+        "@percentage",
+        percentage
+      );
+
+      replies.push(balanceMessage);
+      replies.push({
+        type: "text",
+        text: transactions.map((x) => x.message).join("\n"),
+      });
+      break;
     default:
       user.state = states.waitingOption;
       replies.push(stateMessage.didntUnderstand);
@@ -459,6 +488,10 @@ function handleMenuOption(text, user, isVolunary) {
   }
 
   return replies;
+}
+
+function getSum(total, transaction) {
+  return total + Math.round(transaction.amount);
 }
 
 function readUsersFile(isVolunary) {
