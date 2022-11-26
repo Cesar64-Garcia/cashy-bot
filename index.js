@@ -94,16 +94,72 @@ const goalValidationMessageTemplate = {
   },
 };
 
+const percentageValidationMessageTemplate = {
+  type: "template",
+  altText: "this is a buttons template",
+  template: {
+    type: "buttons",
+    text: "Are you sure you want to change your percentage? ",
+    actions: [
+      {
+        type: "message",
+        label: "Yes",
+        text: "Yes",
+      },
+      {
+        type: "message",
+        label: "No",
+        text: "No",
+      },
+    ],
+  },
+};
+
+const paymentMethodMessageTemplate = {
+  altText: "this is a buttons template",
+  type: "template",
+  template: {
+    type: "buttons",
+    actions: [
+      {
+        text: "Line Pay",
+        type: "message",
+        label: "Line Pay",
+      },
+      {
+        text: "Credit/Debit Card",
+        type: "message",
+        label: "Credit/Debit Card",
+      },
+      {
+        label: "Cash",
+        type: "message",
+        text: "Cash",
+      },
+      {
+        text: "Other",
+        type: "message",
+        label: "Other",
+      },
+    ],
+    text: "What was your payment method?",
+  },
+};
+
 const states = {
   empty: "empty",
   waitingName: "waitingName",
   waitingPercentage: "waitingPercentage",
+  waitingSpend: "waitingSpend",
+  waitingSpendMethod: "waitingSpendMethod",
+  waitingSpendReason: "waitingSpendReason",
   waitingGoalReason: "waitingGoalReason",
   waitingGoalAmount: "waitingGoalAmount",
   waitingDate: "waitingDate",
   waitingOption: "waitingOption",
   waitingSavingAmount: "waitingSavingAmount",
   waitingGoalChangeValidation: "waitingGoalChangeValidation",
+  waitingPercentageChangeValidation: "waitingPercentageChangeValidation",
 };
 
 const menuOptions = {
@@ -111,6 +167,8 @@ const menuOptions = {
   changeGoal: "I want to change my savings goal.",
   savingTip: "Can you give me some savings tips?",
   showBalance: "Please show me my balance.",
+  addSpend: "I want to add a new spend.",
+  adjustPercentage: "I want to adjust my saving percentage.",
 };
 
 const stateMessage = {
@@ -121,11 +179,11 @@ const stateMessage = {
   nameSent: { type: "text", text: "Nice to meet you @name." },
   percentageExplaines: {
     type: "text",
-    text: "Ca$hy will automatically save a percentage of all your purchases",
+    text: "Ca$hy will automatically save a percentage of all your spendings",
   },
   askPercentage: {
     type: "text",
-    text: "Which percentage of your purchases you want to save? \n\nPlease input only number.",
+    text: "How much percentage do you want to save on your spendings? \n\nPlease input only number.",
   },
   askReason: reasonMessageTemplate,
   askAmount: {
@@ -135,7 +193,11 @@ const stateMessage = {
   askDate: dateMessageTemplate,
   goalSet: {
     type: "text",
-    text: "Your new goal is set to NTD@amount, and the expected date @date. \n\nLet's continue your saving journey by selecting an option from the menu.",
+    text: "Your goal is set to NTD@amount, and the expected date @date. \n\nLet's continue your saving journey by selecting an option from the menu.",
+  },
+  goalSetWithPercentage: {
+    type: "text",
+    text: "Your goal is set to NTD@amount, and the expected date @date. \n\n We will save a @percentage% of every spending you made. \n\nLet's continue your saving journey by selecting an option from the menu and don't forget to record your daily spendings.",
   },
   didntUnderstand: {
     type: "text",
@@ -153,6 +215,11 @@ const stateMessage = {
     type: "text",
     text: "Your current goal is NTD@amount and expected date is @date.",
   },
+  currentPercentage: {
+    type: "text",
+    text: "Currently, your percentage of saving is @percentage%",
+  },
+  percentageValidation: percentageValidationMessageTemplate,
   goalValidation: goalValidationMessageTemplate,
   goalToChange: {
     type: "text",
@@ -162,9 +229,26 @@ const stateMessage = {
     type: "text",
     text: "Your goal is NTD@amount and expected date is @date. \n\nHope you enjoy your saving journey!",
   },
+  percentageDoNotChange: {
+    type: "text",
+    text: "Your saving percentage is @percentage%. \n\nHope you enjoy your saving journey!",
+  },
   balance: {
     type: "text",
     text: "You save a total of NTD@amount.\n\nYou have achieve @percentage% of your goal! \n\nBelow you'll see your transaction history.",
+  },
+  askSpend: {
+    type: "text",
+    text: "How much money (NTD) did you spend? \n\n Please input only number.",
+  },
+  askSpendPaymentMethod: paymentMethodMessageTemplate,
+  askSpendDescription: {
+    type: "text",
+    text: "What did you spend money on?",
+  },
+  transactionRecorded: {
+    type: "text",
+    text: "Congratualations!!! \n\nYour transaction has been recorded, you have saved NTD@amount! \n\nHope you enjoy your saving journey!",
   },
 };
 
@@ -311,7 +395,7 @@ function handleEvent(event, userId, isVolunary) {
 }
 
 function handleText(text, replyToken, userId, isVolunary) {
-  const users = readUsersFile(true);
+  const users = readUsersFile(isVolunary);
   let user = users.find((x) => x.userId === userId);
 
   if (!user) {
@@ -357,6 +441,30 @@ function routing(text, user, isVolunary) {
       user.state = states.waitingGoalAmount;
       replies.push(stateMessage.askAmount);
       break;
+    case states.waitingPercentage:
+      const percentage = parseInt(text);
+      if (isNaN(percentage) || !percentage) {
+        user.state = states.waitingPercentage;
+        replies.push(stateMessage.askPercentage);
+      } else if (user.percentage) {
+        user.percentage = percentage;
+        user.state = states.waitingOption;
+
+        const percentageSetMessage = {
+          ...stateMessage.percentageDoNotChange,
+        };
+        percentageSetMessage.text = percentageSetMessage.text.replaceAll(
+          "@percentage",
+          user.percentage
+        );
+
+        replies.push(percentageSetMessage);
+      } else {
+        user.percentage = percentage;
+        user.state = states.waitingGoalReason;
+        replies.push(stateMessage.askReason);
+      }
+      break;
     case states.waitingGoalAmount:
       const amount = parseInt(text);
       if (isNaN(amount)) {
@@ -373,10 +481,13 @@ function routing(text, user, isVolunary) {
       user.date = text;
       user.state = states.waitingOption;
 
-      const goalSetMessage = { ...stateMessage.goalSet };
+      const goalSetMessage = isVolunary
+        ? { ...stateMessage.goalSet }
+        : { ...stateMessage.goalSetWithPercentage };
       goalSetMessage.text = goalSetMessage.text
         .replaceAll("@amount", user.amount)
-        .replaceAll("@date", user.date);
+        .replaceAll("@date", user.date)
+        .replaceAll("@percentage", user.percentage);
 
       replies.push(goalSetMessage);
       break;
@@ -384,7 +495,6 @@ function routing(text, user, isVolunary) {
       replies = handleMenuOption(text, user, isVolunary);
       break;
     case states.waitingSavingAmount:
-      user.state = states.waitingOption;
       user.savings = user.savings || [];
 
       const savingAmount = parseInt(text);
@@ -416,6 +526,64 @@ function routing(text, user, isVolunary) {
         replies.push(goalDoNotChangeMessage);
       }
       break;
+    case states.waitingSpend:
+      user.savings = user.savings || [];
+
+      const spendAmount = parseInt(text);
+      if (isNaN(spendAmount)) {
+        user.state = states.waitingSpend;
+        replies.push(stateMessage.askSpend);
+      } else {
+        user.savings.push({
+          date: Date.now(),
+          spend: spendAmount,
+          amount: (spendAmount * user.percentage) / 100,
+        });
+        user.state = states.waitingSpendMethod;
+        replies.push(stateMessage.askSpendPaymentMethod);
+      }
+      break;
+    case states.waitingSpendMethod:
+      user.savings[user.savings.length - 1].method = text;
+      user.state = states.waitingSpendReason;
+      replies.push(stateMessage.askSpendDescription);
+      break;
+    case states.waitingSpendReason:
+      user.savings[user.savings.length - 1].reason = text;
+      user.state = states.waitingOption;
+
+      const transactionRecordedMessage = {
+        ...stateMessage.transactionRecorded,
+      };
+
+      transactionRecordedMessage.text =
+        transactionRecordedMessage.text.replaceAll(
+          "@amount",
+          user.savings[user.savings.length - 1].amount
+        );
+
+      replies.push(transactionRecordedMessage);
+      break;
+    case states.waitingPercentageChangeValidation:
+      if (text === "Yes") {
+        user.state = states.waitingPercentage;
+        replies.push(stateMessage.askPercentage);
+      } else {
+        user.state = states.waitingOption;
+
+        const percentageDoNotChangeMessage = {
+          ...stateMessage.percentageDoNotChange,
+        };
+        percentageDoNotChangeMessage.text =
+          percentageDoNotChangeMessage.text.replaceAll(
+            "@percentage",
+            user.percentage
+          );
+
+        replies.push(percentageDoNotChangeMessage);
+      }
+      break;
+
     default:
       break;
   }
@@ -479,6 +647,22 @@ function handleMenuOption(text, user, isVolunary) {
         type: "text",
         text: transactions.map((x) => x.message).join("\n"),
       });
+      break;
+    case menuOptions.addSpend:
+      user.state = states.waitingSpend;
+      replies.push(stateMessage.askSpend);
+      break;
+    case menuOptions.adjustPercentage:
+      user.state = states.waitingPercentageChangeValidation;
+
+      const currentPercentageMessage = { ...stateMessage.currentPercentage };
+      currentPercentageMessage.text = currentPercentageMessage.text.replaceAll(
+        "@percentage",
+        user.percentage
+      );
+
+      replies.push(currentPercentageMessage);
+      replies.push(stateMessage.percentageValidation);
       break;
     default:
       user.state = states.waitingOption;
