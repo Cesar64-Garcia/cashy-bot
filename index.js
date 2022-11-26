@@ -193,11 +193,11 @@ const stateMessage = {
   askDate: dateMessageTemplate,
   goalSet: {
     type: "text",
-    text: "Your goal is set to NTD@amount, and the expected date @date. \n\nLet's continue your saving journey by selecting an option from the menu.",
+    text: "Your goal is set to NTD @amount, and the expected date @date. \n\nLet's continue your saving journey by selecting an option from the menu.",
   },
   goalSetWithPercentage: {
     type: "text",
-    text: "Your goal is set to NTD@amount, and the expected date @date. \n\n We will save a @percentage% of every spending you made. \n\nLet's continue your saving journey by selecting an option from the menu and don't forget to record your daily spendings.",
+    text: "Your goal is set to NTD @amount, and the expected date @date. \n\n We will save a @percentage% of every spending you made. \n\nLet's continue your saving journey by selecting an option from the menu and don't forget to record your daily spendings.",
   },
   didntUnderstand: {
     type: "text",
@@ -213,7 +213,7 @@ const stateMessage = {
   },
   currentGoal: {
     type: "text",
-    text: "Your current goal is NTD@amount and expected date is @date.",
+    text: "Your current goal is NTD @amount and expected date is @date.",
   },
   currentPercentage: {
     type: "text",
@@ -227,7 +227,7 @@ const stateMessage = {
   },
   goalDoNotChange: {
     type: "text",
-    text: "Your goal is NTD@amount and expected date is @date. \n\nHope you enjoy your saving journey!",
+    text: "Your goal is NTD @amount and expected date is @date. \n\nHope you enjoy your saving journey!",
   },
   percentageDoNotChange: {
     type: "text",
@@ -235,7 +235,7 @@ const stateMessage = {
   },
   balance: {
     type: "text",
-    text: "You save a total of NTD@amount.\n\nYou have achieve @percentage% of your goal! \n\nBelow you'll see your transaction history.",
+    text: "You save a total of NTD @amount.\n\nYou have achieve @percentage% of your goal! \n\nBelow you'll see your transaction history.",
   },
   askSpend: {
     type: "text",
@@ -248,7 +248,7 @@ const stateMessage = {
   },
   transactionRecorded: {
     type: "text",
-    text: "Congratualations!!! \n\nYour transaction has been recorded, you have saved NTD@amount! \n\nHope you enjoy your saving journey!",
+    text: "Congratualations!!! \n\nYour transaction has been recorded, you have saved NTD @amount! \n\nHope you enjoy your saving journey!",
   },
 };
 
